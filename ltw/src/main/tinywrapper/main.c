@@ -284,6 +284,7 @@ void *glMapBufferRange( 	GLenum target,
                            GLintptr offset,
                            GLsizeiptr length,
                            GLbitfield access) {
+    if(!current_context) return NULL;
     if(never_flush_buffers) access &= ~GL_MAP_FLUSH_EXPLICIT_BIT;
     return es3_functions.glMapBufferRange(target, offset, length, access);
 }
@@ -361,6 +362,48 @@ INTERNAL GLenum get_base_buffer_enum(int buffer_index) {
         case 3: return GL_UNIFORM_BUFFER;
         default: return -1;
     }
+}
+
+// GLES 3.0 core buffer functions. Forward to the host pointer resolved at
+// init. Without these wrappers LTW would expose empty STUBFUNCs via
+// eglGetProcAddress (same root cause as glGetFloatv / glGenQueries): ANGLE
+// need not export core static entries through the proc-address API. The
+// empty stubs were silently no-op'ing glBufferData/glUnmapBuffer, and
+// glMapBuffer's glGetBufferParameteriv length query returned garbage, so
+// Sodium's GlBuffer$Direct.map() got a NULL/invalid pointer and crashed.
+void glGenBuffers(GLsizei n, GLuint* buffers) {
+    if(!current_context) return;
+    if(es3_functions.glGenBuffers) es3_functions.glGenBuffers(n, buffers);
+}
+void glDeleteBuffers(GLsizei n, const GLuint* buffers) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteBuffers) es3_functions.glDeleteBuffers(n, buffers);
+}
+GLboolean glIsBuffer(GLuint buffer) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsBuffer) return es3_functions.glIsBuffer(buffer);
+    return GL_FALSE;
+}
+void glBufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage) {
+    if(!current_context) return;
+    if(es3_functions.glBufferData) es3_functions.glBufferData(target, size, data, usage);
+}
+void glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size, const void* data) {
+    if(!current_context) return;
+    if(es3_functions.glBufferSubData) es3_functions.glBufferSubData(target, offset, size, data);
+}
+GLboolean glUnmapBuffer(GLenum target) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glUnmapBuffer) return es3_functions.glUnmapBuffer(target);
+    return GL_FALSE;
+}
+void glGetBufferParameteriv(GLenum target, GLenum pname, GLint* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetBufferParameteriv) es3_functions.glGetBufferParameteriv(target, pname, params);
+}
+void glGetBufferPointerv(GLenum target, GLenum pname, void** params) {
+    if(!current_context) return;
+    if(es3_functions.glGetBufferPointerv) es3_functions.glGetBufferPointerv(target, pname, params);
 }
 
 void glBindBuffer(GLenum buffer, GLuint name) {
