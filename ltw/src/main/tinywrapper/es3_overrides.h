@@ -31,6 +31,16 @@ void glGetQueryObjectiv( 	GLuint id,
                             GLenum pname,
                             GLint * params);
 
+// GLES 3.0 core query functions. Implemented in query.c so eglGetProcAddress
+// returns a real forwarder instead of an empty STUBFUNC (see query.c comment).
+void glGenQueries(GLsizei n, GLuint* ids);
+void glDeleteQueries(GLsizei n, const GLuint* ids);
+GLboolean glIsQuery(GLuint id);
+void glBeginQuery(GLenum target, GLuint id);
+void glEndQuery(GLenum target);
+void glGetQueryiv(GLenum target, GLenum pname, GLint* params);
+void glGetQueryObjectuiv(GLuint id, GLenum pname, GLuint* params);
+
 void glDepthRange(GLdouble nearVal,
                   GLdouble farVal);
 
@@ -84,6 +94,13 @@ GLESOVERRIDE(glGetTexImage)
 GLESOVERRIDE(glGetQueryObjectiv)
 GLESOVERRIDE(glGetQueryObjecti64v)
 GLESOVERRIDE(glGetQueryObjectui64v)
+GLESOVERRIDE(glGenQueries)
+GLESOVERRIDE(glDeleteQueries)
+GLESOVERRIDE(glIsQuery)
+GLESOVERRIDE(glBeginQuery)
+GLESOVERRIDE(glEndQuery)
+GLESOVERRIDE(glGetQueryiv)
+GLESOVERRIDE(glGetQueryObjectuiv)
 GLESOVERRIDE(glDepthRange)
 GLESOVERRIDE(glVertexAttrib1d)
 GLESOVERRIDE(glVertexAttrib1dv)
