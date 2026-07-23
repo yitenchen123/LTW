@@ -185,9 +185,25 @@ if(ANDROID)
     target_link_libraries(ltw PRIVATE log)
 endif()
 
-set_target_properties(ltw PROPERTIES
-    OUTPUT_NAME ltw
-    PREFIX lib
-)
+# On Apple the dylib's install name is @rpath/libltw.dylib (so launchers that
+# dlopen("@rpath/libltw.dylib") find it), and we record two rpath entries that
+# let the constructor's dlopen("@rpath/libtinygl4angle.dylib") resolve to the
+# app bundle's Frameworks/ directory -- matching how Amethyst lays out its
+# bundle (libltw.dylib + libtinygl4angle.dylib + libEGL/libGLESv2.frameworks
+# all live next to each other under Amethyst.app/Frameworks/).
+if(APPLE)
+    set_target_properties(ltw PROPERTIES
+        OUTPUT_NAME ltw
+        PREFIX lib
+        INSTALL_NAME_DIR "@rpath"
+        BUILD_WITH_INSTALL_RPATH ON
+        INSTALL_RPATH "@executable_path/Frameworks;@loader_path/Frameworks"
+    )
+else()
+    set_target_properties(ltw PROPERTIES
+        OUTPUT_NAME ltw
+        PREFIX lib
+    )
+endif()
 
 install(TARGETS ltw LIBRARY DESTINATION lib)

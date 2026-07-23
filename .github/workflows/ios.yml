@@ -29,6 +29,19 @@ jobs:
         echo "=== Sample ==="
         nm -gU build-ios/libltw.dylib | grep -E ' [Tt] (_gl|_egl)' | head -20
 
+    - name: Verify dylib load metadata (install name & rpaths)
+      run: |
+        echo "=== install name (must be @rpath/libltw.dylib) ==="
+        otool -D build-ios/libltw.dylib
+        echo "=== LC_RPATH entries (must include Frameworks search paths) ==="
+        otool -l build-ios/libltw.dylib | grep -A2 LC_RPATH
+        # Fail the build if the install name or rpaths are wrong -- without the
+        # correct @rpath the constructor's dlopen("@rpath/libtinygl4angle.dylib")
+        # fails at launch and aborts, exactly like the libEGL.so crash.
+        test "$(otool -D build-ios/libltw.dylib | tail -1)" = "@rpath/libltw.dylib"
+        otool -l build-ios/libltw.dylib | grep -q "@executable_path/Frameworks"
+        otool -l build-ios/libltw.dylib | grep -q "@loader_path/Frameworks"
+
     - name: Upload libltw.dylib
       uses: actions/upload-artifact@v4.6.0
       with:

@@ -30,17 +30,25 @@ The GitHub Actions workflow `.github/workflows/ios.yml` does this automatically
 and uploads `libltw.dylib` as an artifact on every push.
 
 ## Runtime: selecting the GLES backend
-LTW dlopens a host `libEGL` at startup. Set the `LIBGL_EGL` environment variable
-to the path of the GLES backend's libEGL inside the app bundle:
+At startup LTW dlopens a host EGL provider and resolves every ES3 entry point
+through `eglGetProcAddress`.
+
+- **Android**: defaults to `libEGL.so` (system EGL).
+- **iOS/macOS**: defaults to `@rpath/libtinygl4angle.dylib` — the gl4es-style
+  ANGLE wrapper that links against `libEGL.framework` + `libGLESv2.framework`
+  (chromium ANGLE, Metal backend). This matches Amethyst's bundle layout, where
+  `libltw.dylib`, `libtinygl4angle.dylib` and the two ANGLE frameworks all live
+  under `Amethyst.app/Frameworks/`. The dylib records
+  `@executable_path/Frameworks` and `@loader_path/Frameworks` as rpaths, so the
+  constructor resolves the wrapper without any environment variable. The
+  launcher does **not** need to set `LIBGL_EGL`.
+
+`LIBGL_EGL` remains available as an optional override (e.g. for pointing at a
+different GLES backend build during debugging):
 
 ```
 LIBGL_EGL=/var/containers/Bundle/Application/.../Amethyst.app/Frameworks/libEGL.framework/libEGL
 ```
-
-When using Amethyst's ANGLE or MobileGlues backend, point `LIBGL_EGL` at the
-framework's executable. If `LIBGL_EGL` is unset, LTW falls back to
-`libEGL.so` (the Android system path, which does not exist on iOS — so the
-variable **must** be set).
 
 # Integration
 Drop `libltw.dylib` into the app bundle's `Frameworks/` directory. The launcher

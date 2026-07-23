@@ -39,13 +39,28 @@ static void init_es3_proc() {
 }
 
 __attribute__((constructor, used)) void proc_init(){
-    const char* systemEglPath = "libEGL.so";
-    const char* eglPath = getenv("LIBGL_EGL") != NULL ? getenv("LIBGL_EGL") : systemEglPath;
+#if defined(__APPLE__)
+    /* iOS/macOS: libtinygl4angle.dylib is the gl4es-style ANGLE wrapper that
+     * links against libEGL.framework + libGLESv2.framework (chromium ANGLE,
+     * Metal backend) and exposes eglGetProcAddress. LTW resolves every ES3
+     * function pointer through it. dlsym follows the link dependency to find
+     * ANGLE's eglGetProcAddress even though the wrapper itself doesn't export
+     * it. The launcher does NOT set LIBGL_EGL; it relies on this default, so
+     * the rpath recorded into libltw.dylib (@executable_path/Frameworks,
+     * @loader_path/Frameworks) must resolve to the app bundle's Frameworks/
+     * directory where libtinygl4angle.dylib lives. LIBGL_EGL stays as an
+     * optional override for swapping the host EGL at runtime. */
+    const char* defaultEglPath = "@rpath/libtinygl4angle.dylib";
+#else
+    const char* defaultEglPath = "libEGL.so";
+#endif
+    const char* eglPath = getenv("LIBGL_EGL") != NULL ? getenv("LIBGL_EGL") : defaultEglPath;
     int flags = RTLD_LAZY | RTLD_LOCAL;
     void* eglHandle = dlopen(eglPath, flags);
     if(eglHandle == NULL){
-        printf("LTWInit: failed loading custom libEGL, using default\n");
-        eglHandle = dlopen(systemEglPath, flags);
+        printf("LTWInit: failed loading EGL (%s), trying default (%s): %s\n",
+               eglPath, defaultEglPath, dlerror());
+        eglHandle = dlopen(defaultEglPath, flags);
         if(eglHandle == NULL)
             error_sysegl();
     }
