@@ -18,11 +18,11 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
 
-# Hide all non-API symbols by default; only gl*/egl* are exported via the
-# version script (Linux) / exported_symbols list (Apple).
-set(CMAKE_C_VISIBILITY_PRESET hidden)
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+# Do NOT use CMAKE_*_VISIBILITY_PRESET here. The ltw shared library needs all
+# gl*/egl* entry points exported (they're called via dlsym from the JVM), so
+# visibility control is done entirely via the linker version script on ELF and
+# the exported_symbols_list on Mach-O. Only glsl_optimizer gets -fvisibility=hidden
+# to keep mesa internals from leaking.
 
 # -------- Common compile flags (mirrors ltw/src/main/tinywrapper/Android.mk) --------
 set(LTW_COMMON_FLAGS
@@ -33,13 +33,22 @@ set(LTW_COMMON_FLAGS
     -D__STDC_LIMIT_MACROS
     -D__STDC_FORMAT_MACROS
     -D__STDC_CONSTANT_MACROS
-    -DUTIL_ARCH_LITTLE_ENDIAN
+    -DUTIL_ARCH_LITTLE_ENDIAN=1
+    -DUTIL_ARCH_BIG_ENDIAN=0
     -DUNIX
     -DHAVE_OPENGL
     -DHAVE_OPENGL_ES_1
     -DHAVE_OPENGL_ES_2
-    -fvisibility=hidden
 )
+
+# Non-Android platforms (Linux glibc, Apple) already declare timespec_get in
+# <time.h>. The c11 threads shim in glsl_optimizer/include/c11/threads_posix.h
+# guards its own copy behind #ifndef HAVE_TIMESPEC_GET, so defining this avoids
+# a static/extern redeclaration error in C++ files. Android API 21 doesn't
+# declare timespec_get, so it's NOT defined there.
+if(NOT ANDROID)
+    list(APPEND LTW_COMMON_FLAGS -DHAVE_TIMESPEC_GET)
+endif()
 
 # Android-specific defines from the original Android.mk. On non-Android we
 # intentionally do NOT define DETECT_OS_ANDROID/HAVE_STRUCT_TIMESPEC/DETECT_OS_ANDROID,
@@ -58,8 +67,13 @@ set(LTW_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/ltw/src/main/tinywrapper)
 set(GLSL_OPT_ROOT ${LTW_ROOT}/glsl_optimizer)
 
 set(LTW_INCLUDE_DIRS
+    # Vendored Khronos EGL/GLES3 headers (self-contained, no system EGL needed)
+    ${CMAKE_CURRENT_SOURCE_DIR}/ltw/include
     ${LTW_ROOT}
     ${GLSL_OPT_ROOT}/include
+    # glsl_optimizer/include/GL contains KHR/khrplatform.h, needed by the
+    # repo's own GL/glext.h which does #include <KHR/khrplatform.h>
+    ${GLSL_OPT_ROOT}/include/GL
     ${GLSL_OPT_ROOT}/src
     ${GLSL_OPT_ROOT}/src/compiler
     ${GLSL_OPT_ROOT}/src/compiler/nir
@@ -95,8 +109,9 @@ file(GLOB_RECURSE GLSL_OPT_SRCS CONFIGURE_DEPENDS
 )
 
 add_library(glsl_optimizer STATIC ${GLSL_OPT_SRCS})
-target_compile_definitions(glsl_optimizer PRIVATE ${LTW_COMMON_FLAGS})
+target_compile_options(glsl_optimizer PRIVATE ${LTW_COMMON_FLAGS})
 target_compile_options(glsl_optimizer PRIVATE
+    -fvisibility=hidden
     -ffunction-sections
     -fdata-sections
 )
@@ -130,27 +145,34 @@ set(LTW_SOURCES
 )
 
 add_library(ltw SHARED ${LTW_SOURCES})
-target_compile_definitions(ltw PRIVATE ${LTW_COMMON_FLAGS})
+target_compile_options(ltw PRIVATE ${LTW_COMMON_FLAGS})
 target_compile_options(ltw PRIVATE
     -ffunction-sections
     -fdata-sections
 )
 target_link_libraries(ltw PRIVATE glsl_optimizer)
 
-# Export only gl*/egl* symbols, matching version.script on ELF. On Mach-O we
-# use an exported-symbols list so non-API mesa symbols stay hidden.
+# Export only gl*/egl* symbols. On ELF we use a version script; on Mach-O
+# (iOS/macOS) we use -exported_symbol with wildcards since ld64's
+# -exported_symbols_list file does NOT support glob patterns. All other
+# symbols are automatically hidden by the linker.
 if(APPLE)
     target_link_options(ltw PRIVATE
         -Wl,-dead_strip
-        LINKER "-exported_symbols_list" "${CMAKE_CURRENT_SOURCE_DIR}/ltw/exported_symbols"
+        "LINKER:-exported_symbol,_gl*"
+        "LINKER:-exported_symbol,_egl*"
+        "LINKER:-exported_symbol,_glXGetProcAddress"
     )
 else()
     target_link_options(ltw PRIVATE
-        -Wl,--version-script=${LTW_ROOT}/version.script
-        -Wl,--gc-sections
+        -Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/ltw/exported_symbols_linux.ld
     )
-    # LTO matches Android.mk "Comment for debugging" line
-    target_link_options(ltw PRIVATE -flto)
+    # NOTE: Android.mk uses the repo's version.script + -flto + --gc-sections,
+    # which works on Android because lld checks version-script global patterns
+    # before gc'ing and uses most-specific match for global vs local conflicts.
+    # GNU ld would run --gc-sections first and remove "unreferenced" gl*/egl*
+    # entry points (they're only called via dlsym from the JVM), so we omit
+    # both LTO and --gc-sections here. The version script alone is sufficient.
 endif()
 
 # pthread is needed by mesa's c11 threads shim and by thread_local in egl.c

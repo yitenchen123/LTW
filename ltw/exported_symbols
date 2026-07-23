@@ -1,8 +1,0 @@
-# Exported symbols for libltw.dylib (Apple linker -exported_symbols_list).
-# Mirrors ltw/src/main/tinywrapper/version.script on ELF: only gl* and egl*
-# symbols are public; everything else (mesa internals, c11 threads shim, etc.)
-# stays hidden so it does not clash with other mesa-derived dylibs the host
-# launcher may load (MobileGlues, ANGLE, etc.).
-_gl*
-_egl*
-_glXGetProcAddress

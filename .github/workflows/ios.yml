@@ -1,0 +1,37 @@
+name: iOS CI
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake (iOS arm64)
+      run: |
+        cmake -B build-ios \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_SYSTEM_NAME=iOS \
+          -DCMAKE_OSX_ARCHITECTURES=arm64 \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+          -DCMAKE_XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH=NO \
+          -DCMAKE_INSTALL_PREFIX=build-ios/install
+
+    - name: Build libltw.dylib
+      run: cmake --build build-ios --config Release -j$(sysctl -n hw.ncpu)
+
+    - name: Verify exported symbols
+      run: |
+        echo "=== Exported gl/egl symbols ==="
+        nm -gU build-ios/libltw.dylib | grep -cE ' [Tt] (_gl|_egl)'
+        echo "=== Sample ==="
+        nm -gU build-ios/libltw.dylib | grep -E ' [Tt] (_gl|_egl)' | head -20
+
+    - name: Upload libltw.dylib
+      uses: actions/upload-artifact@v4.6.0
+      with:
+        name: libltw-ios-arm64
+        path: build-ios/libltw.dylib
+        if-no-files-found: error
