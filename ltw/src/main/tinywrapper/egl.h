@@ -70,6 +70,14 @@ typedef struct {
     EGLContext phys_context;
     bool context_rdy;
     bool es31, es32, buffer_storage, buffer_texture_ext, multidraw_indirect, timer_query;
+    // When the host GLES backend lacks GL_EXT_texture_buffer (ES 3.0 only),
+    // LTW transparently emulates buffer textures with 2D textures: the shader
+    // is lowered (samplerBuffer -> sampler2D, see shader_wrapper.c) and the
+    // GL_TEXTURE_BUFFER bind target / glTexBuffer calls are intercepted
+    // (see main.c). GL_ARB_texture_buffer_object is still advertised so MC's
+    // CPU-side extension checks pass and it proceeds down the buffer-texture
+    // code path, which LTW then services via the emulation.
+    bool emulate_texture_buffer;
     GLint shader_version;
     basevertex_renderer_t basevertex;
     PFNGLDRAWELEMENTSBASEVERTEXPROC drawelementsbasevertex;
@@ -80,6 +88,11 @@ typedef struct {
     unordered_map* program_map;
     unordered_map* framebuffer_map;
     unordered_map* texture_swztrack_map;
+    // buffer-texture name (GLuint created by MC for GL_TEXTURE_BUFFER) ->
+    // internal GL_TEXTURE_2D name used by the emulation.
+    unordered_map* texbuf_emul_map;
+    // currently bound GL_TEXTURE_BUFFER name (single active binding tracker).
+    GLuint bound_buf_texture;
     unordered_map* bound_basebuffers[MAX_BOUND_BASEBUFFERS];
     int proxy_width, proxy_height, proxy_intformat, maxTextureSize;
     GLint max_drawbuffers;

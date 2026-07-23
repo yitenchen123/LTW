@@ -37,6 +37,9 @@ static bool init_context(context_t* tw_context) {
     if(!tw_context->program_map) goto fail_dealloc;
     tw_context->texture_swztrack_map = alloc_intmap_safe();
     if(!tw_context->texture_swztrack_map) goto fail_dealloc;
+    tw_context->texbuf_emul_map = alloc_intmap_safe();
+    if(!tw_context->texbuf_emul_map) goto fail_dealloc;
+    tw_context->bound_buf_texture = 0;
     for(int i = 0; i < MAX_BOUND_BASEBUFFERS; i++) {
         unordered_map *map = alloc_intmap_safe();
         if(!map) goto fail_dealloc;
@@ -57,6 +60,8 @@ static bool init_context(context_t* tw_context) {
         unordered_map_free(tw_context->program_map);
     if(tw_context->texture_swztrack_map)
         unordered_map_free(tw_context->texture_swztrack_map);
+    if(tw_context->texbuf_emul_map)
+        unordered_map_free(tw_context->texbuf_emul_map);
     fail:
     return false;
 }
@@ -66,6 +71,7 @@ static void free_context(context_t* tw_context) {
     unordered_map_free(tw_context->program_map);
     unordered_map_free(tw_context->framebuffer_map);
     unordered_map_free(tw_context->texture_swztrack_map);
+    unordered_map_free(tw_context->texbuf_emul_map);
     if(tw_context->extensions_string != NULL) free(tw_context->extensions_string);
     if(tw_context->nextras != 0 && tw_context->extra_extensions_array != NULL) {
         for(int i = 0; i < tw_context->nextras; i++) {
@@ -117,7 +123,7 @@ void build_extension_string(context_t* context) {
             add_extra_extension(context, &length, "GL_ARB_buffer_storage");
         else printf("LTW: The buffer storage extension is hidden.\n");
     }
-    if(context->buffer_texture_ext || context->es32) {
+    if(context->buffer_texture_ext || context->es32 || context->emulate_texture_buffer) {
         add_extra_extension(context, &length, "GL_ARB_texture_buffer_object");
     }
     add_extra_extension(context, &length, "GL_ARB_draw_elements_base_vertex");
@@ -166,6 +172,21 @@ static void find_esversion(context_t* context) {
     // string -- the glTexBuffer/glTexBufferRange wrappers still route to
     // glTexBufferEXT at runtime, so no rendering logic changes.
     if(env_istrue_d("LTW_FORCE_TEXTURE_BUFFER", false)) context->buffer_texture_ext = true;
+
+    // If the host GLES backend still lacks texture-buffer support (ES 3.0
+    // only, no GL_EXT_texture_buffer), transparently emulate buffer textures
+    // with 2D textures: declare GL_ARB_texture_buffer_object so MC proceeds,
+    // lower samplerBuffer -> sampler2D in the shader converter, and intercept
+    // glTexBuffer/glBindTexture at runtime. This is what makes MC 26.2's
+    // cloud shader (isamplerBuffer + texelFetch) actually compile and render
+    // on ES 3.0. LTW_NO_EMULATE_TEXTURE_BUFFER=1 disables the emulation for
+    // hosts that genuinely can't service it (then the cloud shader simply
+    // won't compile, matching the prior behavior).
+    if(!context->buffer_texture_ext && !context->es32 &&
+       !env_istrue("LTW_NO_EMULATE_TEXTURE_BUFFER")) {
+        context->emulate_texture_buffer = true;
+        printf("LTW: Host lacks GL_EXT_texture_buffer; emulating buffer textures with 2D textures.\n");
+    }
 
     // EXT_disjoint_timer_query provides accurate int64 timer queries
     // on Core Profile it's ARB_timer_query instead

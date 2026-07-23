@@ -7,6 +7,7 @@
 #include <dlfcn.h>
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "GL/gl.h"
 #include <GLES3/gl3.h>
 #include "string_utils.h"
@@ -524,13 +525,103 @@ void glDeleteTextures(GLsizei n, const GLuint *textures) {
     for(int i = 0; i < n; i++) {
         void* tracker = unordered_map_remove(current_context->texture_swztrack_map, (void*)textures[i]);
         free(tracker);
+        // Release the internal 2D texture backing a deleted buffer texture.
+        if(current_context->emulate_texture_buffer) {
+            void* e = unordered_map_remove(current_context->texbuf_emul_map,
+                                           (void*)(uintptr_t)textures[i]);
+            if(e) {
+                GLuint internal2D = (GLuint)(uintptr_t)e;
+                es3_functions.glDeleteTextures(1, &internal2D);
+                if(current_context->bound_buf_texture == textures[i])
+                    current_context->bound_buf_texture = 0;
+            }
+        }
     }
 }
 
 static bool buf_tex_trigger = false;
 
+// ---- texture-buffer runtime emulation (ES 3.0) ----------------------------
+// When the host lacks GL_EXT_texture_buffer, LTW services GL_TEXTURE_BUFFER
+// by uploading the referenced buffer object's store into an internal 2D
+// texture (height 1) and remapping the GL_TEXTURE_BUFFER bind target to
+// GL_TEXTURE_2D. The shader side is lowered to sampler2D (see
+// shader_wrapper.c), so MC's isamplerBuffer + texelFetch reads land on the
+// 2D texture. Only active when current_context->emulate_texture_buffer.
+
+// Map a buffer-texture sized internal format to (pixel format, pixel type,
+// element size in bytes). Returns false for unsupported formats.
+static bool emul_map_format(GLenum internalFormat, GLenum* fmt, GLenum* type, GLint* elemsize) {
+    switch(internalFormat) {
+        case GL_R8I:        *fmt = GL_RED_INTEGER; *type = GL_BYTE;           *elemsize = 1; return true;
+        case GL_R8UI:       *fmt = GL_RED_INTEGER; *type = GL_UNSIGNED_BYTE;  *elemsize = 1; return true;
+        case GL_R16I:       *fmt = GL_RED_INTEGER; *type = GL_SHORT;          *elemsize = 2; return true;
+        case GL_R16UI:      *fmt = GL_RED_INTEGER; *type = GL_UNSIGNED_SHORT; *elemsize = 2; return true;
+        case GL_R32I:       *fmt = GL_RED_INTEGER; *type = GL_INT;            *elemsize = 4; return true;
+        case GL_R32UI:      *fmt = GL_RED_INTEGER; *type = GL_UNSIGNED_INT;   *elemsize = 4; return true;
+        case GL_R32F:       *fmt = GL_RED;         *type = GL_FLOAT;          *elemsize = 4; return true;
+        case GL_R8:         *fmt = GL_RED;         *type = GL_UNSIGNED_BYTE;  *elemsize = 1; return true;
+        default:
+            printf("LTW texbuf emul: unsupported internalFormat 0x%x\n", internalFormat);
+            return false;
+    }
+}
+
+// Look up or create the internal GL_TEXTURE_2D name backing a buffer texture.
+static GLuint emul_get_2d_for_buftex(GLuint bufTexName) {
+    void* existing = unordered_map_get(current_context->texbuf_emul_map,
+                                       (void*)(uintptr_t)bufTexName);
+    if(existing) return (GLuint)(uintptr_t)existing;
+    GLuint internal2D = 0;
+    es3_functions.glGenTextures(1, &internal2D);
+    unordered_map_put(current_context->texbuf_emul_map,
+                      (void*)(uintptr_t)bufTexName, (void*)(uintptr_t)internal2D);
+    return internal2D;
+}
+
+// Read `buffer`'s data store and upload it as a 1xN 2D texture into
+// `internal2D`. Saves/restores GL_ARRAY_BUFFER and GL_TEXTURE_2D bindings.
+static void emul_upload_buffer(GLuint internal2D, GLenum internalFormat,
+                               GLuint buffer, GLintptr offset, GLsizeiptr size,
+                               bool ranged) {
+    GLenum fmt, type; GLint elemsize;
+    if(!emul_map_format(internalFormat, &fmt, &type, &elemsize)) return;
+
+    GLint prevAB = 0, prev2D = 0;
+    es3_functions.glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &prevAB);
+    es3_functions.glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev2D);
+
+    es3_functions.glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    GLint bufSize = 0;
+    es3_functions.glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &bufSize);
+    if(!ranged) { offset = 0; size = bufSize; }
+    if(size <= 0 || offset < 0 || offset + size > bufSize) {
+        es3_functions.glBindBuffer(GL_ARRAY_BUFFER, prevAB);
+        return;
+    }
+    void* data = es3_functions.glMapBufferRange(GL_ARRAY_BUFFER, offset, size, GL_MAP_READ_BIT);
+    if(data) {
+        es3_functions.glBindTexture(GL_TEXTURE_2D, internal2D);
+        GLint width = (GLint)(size / elemsize);
+        es3_functions.glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, 1, 0, fmt, type, data);
+        es3_functions.glUnmapBuffer(GL_ARRAY_BUFFER);
+    } else {
+        printf("LTW texbuf emul: failed to map buffer %u\n", buffer);
+    }
+    es3_functions.glBindTexture(GL_TEXTURE_2D, prev2D);
+    es3_functions.glBindBuffer(GL_ARRAY_BUFFER, prevAB);
+}
+
 void glTexBuffer(GLenum target, GLenum internalFormat, GLuint buffer) {
     if(!current_context) return;
+    if(current_context->emulate_texture_buffer) {
+        if(target != GL_TEXTURE_BUFFER) return;
+        GLuint bufTex = current_context->bound_buf_texture;
+        if(bufTex == 0) return;
+        GLuint internal2D = emul_get_2d_for_buftex(bufTex);
+        emul_upload_buffer(internal2D, internalFormat, buffer, 0, 0, false);
+        return;
+    }
     if(current_context->es32) es3_functions.glTexBuffer(target, internalFormat, buffer);
     else if(current_context->buffer_texture_ext) es3_functions.glTexBufferEXT(target, internalFormat, buffer);
     else if(!buf_tex_trigger) {
@@ -545,6 +636,14 @@ void glTexBufferARB(GLenum target, GLenum internalFormat, GLuint buffer) {
 
 void glTexBufferRange(GLenum target, GLenum internalFormat, GLuint buffer, GLintptr offset, GLsizeiptr size) {
     if(!current_context) return;
+    if(current_context->emulate_texture_buffer) {
+        if(target != GL_TEXTURE_BUFFER) return;
+        GLuint bufTex = current_context->bound_buf_texture;
+        if(bufTex == 0) return;
+        GLuint internal2D = emul_get_2d_for_buftex(bufTex);
+        emul_upload_buffer(internal2D, internalFormat, buffer, offset, size, true);
+        return;
+    }
     if(current_context->es32) es3_functions.glTexBufferRange(target, internalFormat, buffer, offset, size);
     else if(current_context->buffer_texture_ext) es3_functions.glTexBufferRangeEXT(target, internalFormat, buffer, offset, size);
     else if(!buf_tex_trigger) {
@@ -601,6 +700,16 @@ void glBindSampler(GLuint unit, GLuint sampler) {
 
 void glBindTexture(GLenum target, GLuint texture) {
     if(!current_context) return;
+    // Emulate GL_TEXTURE_BUFFER by remapping the bind to an internal 2D
+    // texture (one per buffer-texture name). ES 3.0 has no GL_TEXTURE_BUFFER
+    // target, so passing it through to the host would just generate an error.
+    if(current_context->emulate_texture_buffer && target == GL_TEXTURE_BUFFER) {
+        current_context->bound_buf_texture = texture;
+        GLuint internal2D = 0;
+        if(texture != 0) internal2D = emul_get_2d_for_buftex(texture);
+        if(es3_functions.glBindTexture) es3_functions.glBindTexture(GL_TEXTURE_2D, internal2D);
+        return;
+    }
     if(es3_functions.glBindTexture) es3_functions.glBindTexture(target, texture);
 }
 
