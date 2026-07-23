@@ -191,22 +191,32 @@ static void find_esversion(context_t* context) {
     if(strstr(extensions, "GL_EXT_texture_buffer")) context->buffer_texture_ext = true;
     if(strstr(extensions, "GL_EXT_multi_draw_indirect")) context->multidraw_indirect = true;
 
-    // Some backends (ANGLE/Metal, MobileGlues) export glTexBufferEXT without
-    // listing GL_EXT_texture_buffer in the extension string (or the string was
-    // unreachable via the deprecated glGetString path above). If the function
-    // pointer resolved at init, the backend can service buffer textures, so
-    // advertise the desktop alias GL_ARB_texture_buffer_object. Detection-only:
-    // glTexBuffer/glTexBufferRange still route to the host at runtime.
-    if(!context->buffer_texture_ext && es3_functions.glTexBufferEXT) {
-        context->buffer_texture_ext = true;
-        printf("LTW: glTexBufferEXT resolved but GL_EXT_texture_buffer absent from string; enabling buffer textures.\n");
+    // ANGLE supports GL_ANGLE_request_extension: at runtime the app can ask
+    // ANGLE to enable extensions it implements but doesn't expose by default.
+    // If GL_EXT_texture_buffer isn't in the default string but ANGLE's request
+    // mechanism is available, ask ANGLE to enable it natively. This makes
+    // ANGLE's own GLSL compiler accept #extension GL_EXT_texture_buffer /
+    // samplerBuffer -- no LTW-side emulation or shader rewriting needed.
+    // If ANGLE doesn't implement the extension for this backend, the request
+    // is a no-op and buffer_texture_ext stays false.
+    if(!context->buffer_texture_ext && es3_functions.glRequestExtensionANGLE) {
+        printf("LTW: Requesting GL_EXT_texture_buffer via GL_ANGLE_request_extension\n");
+        es3_functions.glRequestExtensionANGLE("GL_EXT_texture_buffer");
+        free(extensions);
+        extensions = build_host_extensions();
+        if(strstr(extensions, "GL_EXT_texture_buffer")) {
+            context->buffer_texture_ext = true;
+            printf("LTW: GL_EXT_texture_buffer enabled via ANGLE request_extension\n");
+        } else {
+            printf("LTW: ANGLE did not enable GL_EXT_texture_buffer (not implemented for this backend)\n");
+        }
     }
 
-    // Manual override for backends where neither the string nor the function
-    // pointer is reachable but the GLSL compiler still accepts the extension.
+    // Manual override for backends that support the extension at the GLSL level
+    // but neither advertise it nor implement the request mechanism.
     if(env_istrue_d("LTW_FORCE_TEXTURE_BUFFER", false)) context->buffer_texture_ext = true;
-    printf("LTW: buffer_texture_ext=%d es31=%d es32=%d glTexBufferEXT=%p\n",
-           context->buffer_texture_ext, context->es31, context->es32, (void*)es3_functions.glTexBufferEXT);
+    printf("LTW: buffer_texture_ext=%d es31=%d es32=%d\n",
+           context->buffer_texture_ext, context->es31, context->es32);
 
     // EXT_disjoint_timer_query provides accurate int64 timer queries
     // on Core Profile it's ARB_timer_query instead

@@ -26,6 +26,7 @@
 #endif
 
 typedef void (*eglMustCastToProperFunctionPointerType)(void);
+typedef void (*PFNGLREQUESTEXTENSIONANGLEPROC)(const GLchar*);
 
 typedef struct {
 #define GLESFUNC(name, type) type name;
