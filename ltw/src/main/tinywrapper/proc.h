@@ -15,6 +15,12 @@
  * other includes on some toolchains. Use mesa's pthread-based c11 shim that
  * already ships with glsl_optimizer. Android/Linux keep the real <threads.h>. */
 #include "c11/threads.h"
+/* mesa's c11 shim omits the thread_local convenience macro that C11
+ * <threads.h> defines as _Thread_local. Provide it so egl.h's
+ * `thread_local context_t *current_context;` compiles on Apple. */
+#ifndef thread_local
+#define thread_local _Thread_local
+#endif
 #else
 #include <threads.h>
 #endif
