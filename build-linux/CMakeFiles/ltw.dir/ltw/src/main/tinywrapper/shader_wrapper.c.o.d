@@ -75,7 +75,7 @@ CMakeFiles/ltw.dir/ltw/src/main/tinywrapper/shader_wrapper.c.o: \
  /usr/include/strings.h \
  /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
  /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
- /workspace/ltw/src/main/tinywrapper/string_utils.h \
+ /usr/include/ctype.h /workspace/ltw/src/main/tinywrapper/string_utils.h \
  /workspace/ltw/src/main/tinywrapper/egl.h \
  /workspace/ltw/include/EGL/egl.h \
  /workspace/ltw/include/EGL/eglplatform.h \
