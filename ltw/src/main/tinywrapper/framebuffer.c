@@ -300,3 +300,192 @@ void glBindFramebuffer(GLenum target, GLuint framebuffer) {
             break;
     }
 }
+
+/* GLES 3.0 core framebuffer / renderbuffer / sync / transform-feedback /
+ * stencil / blend forwarders. Same STUBFUNC->forwarder fix as elsewhere:
+ * ANGLE need not export these core static entries via eglGetProcAddress, so
+ * LTW previously returned no-op stubs. Forward to es3_functions host ptrs. */
+void glBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {
+    if(!current_context) return;
+    if(es3_functions.glBlitFramebuffer) es3_functions.glBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+}
+
+void glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glRenderbufferStorageMultisample) es3_functions.glRenderbufferStorageMultisample(target, samples, internalformat, width, height);
+}
+
+void glBindRenderbuffer(GLenum target, GLuint renderbuffer) {
+    if(!current_context) return;
+    if(es3_functions.glBindRenderbuffer) es3_functions.glBindRenderbuffer(target, renderbuffer);
+}
+
+void glDeleteRenderbuffers(GLsizei n, const GLuint *renderbuffers) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteRenderbuffers) es3_functions.glDeleteRenderbuffers(n, renderbuffers);
+}
+
+void glGenRenderbuffers(GLsizei n, GLuint *renderbuffers) {
+    if(!current_context) return;
+    if(es3_functions.glGenRenderbuffers) es3_functions.glGenRenderbuffers(n, renderbuffers);
+}
+
+GLboolean glIsRenderbuffer(GLuint renderbuffer) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsRenderbuffer) return es3_functions.glIsRenderbuffer(renderbuffer);
+    return GL_FALSE;
+}
+
+void glGetRenderbufferParameteriv(GLenum target, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetRenderbufferParameteriv) es3_functions.glGetRenderbufferParameteriv(target, pname, params);
+}
+
+void glReadBuffer(GLenum src) {
+    if(!current_context) return;
+    if(es3_functions.glReadBuffer) es3_functions.glReadBuffer(src);
+}
+
+void glInvalidateFramebuffer(GLenum target, GLsizei numAttachments, const GLenum *attachments) {
+    if(!current_context) return;
+    if(es3_functions.glInvalidateFramebuffer) es3_functions.glInvalidateFramebuffer(target, numAttachments, attachments);
+}
+
+void glInvalidateSubFramebuffer(GLenum target, GLsizei numAttachments, const GLenum *attachments, GLint x, GLint y, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glInvalidateSubFramebuffer) es3_functions.glInvalidateSubFramebuffer(target, numAttachments, attachments, x, y, width, height);
+}
+
+void glClearBufferfi(GLenum buffer, GLint drawbuffer, GLfloat depth, GLint stencil) {
+    if(!current_context) return;
+    if(es3_functions.glClearBufferfi) es3_functions.glClearBufferfi(buffer, drawbuffer, depth, stencil);
+}
+
+GLsync glFenceSync(GLenum condition, GLbitfield flags) {
+    if(!current_context) return NULL;
+    if(es3_functions.glFenceSync) return es3_functions.glFenceSync(condition, flags);
+    return NULL;
+}
+
+GLboolean glIsSync(GLsync sync) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsSync) return es3_functions.glIsSync(sync);
+    return GL_FALSE;
+}
+
+void glDeleteSync(GLsync sync) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteSync) es3_functions.glDeleteSync(sync);
+}
+
+GLenum glClientWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeout) {
+    if(!current_context) return 0;
+    if(es3_functions.glClientWaitSync) return es3_functions.glClientWaitSync(sync, flags, timeout);
+    return 0;
+}
+
+void glWaitSync(GLsync sync, GLbitfield flags, GLuint64 timeout) {
+    if(!current_context) return;
+    if(es3_functions.glWaitSync) es3_functions.glWaitSync(sync, flags, timeout);
+}
+
+void glGetSynciv(GLsync sync, GLenum pname, GLsizei bufSize, GLsizei *length, GLint *values) {
+    if(!current_context) return;
+    if(es3_functions.glGetSynciv) es3_functions.glGetSynciv(sync, pname, bufSize, length, values);
+}
+
+void glBeginTransformFeedback(GLenum primitiveMode) {
+    if(!current_context) return;
+    if(es3_functions.glBeginTransformFeedback) es3_functions.glBeginTransformFeedback(primitiveMode);
+}
+
+void glEndTransformFeedback(void) {
+    if(!current_context) return;
+    if(es3_functions.glEndTransformFeedback) es3_functions.glEndTransformFeedback();
+}
+
+void glBindTransformFeedback(GLenum target, GLuint id) {
+    if(!current_context) return;
+    if(es3_functions.glBindTransformFeedback) es3_functions.glBindTransformFeedback(target, id);
+}
+
+void glDeleteTransformFeedbacks(GLsizei n, const GLuint *ids) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteTransformFeedbacks) es3_functions.glDeleteTransformFeedbacks(n, ids);
+}
+
+void glGenTransformFeedbacks(GLsizei n, GLuint *ids) {
+    if(!current_context) return;
+    if(es3_functions.glGenTransformFeedbacks) es3_functions.glGenTransformFeedbacks(n, ids);
+}
+
+GLboolean glIsTransformFeedback(GLuint id) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsTransformFeedback) return es3_functions.glIsTransformFeedback(id);
+    return GL_FALSE;
+}
+
+void glPauseTransformFeedback(void) {
+    if(!current_context) return;
+    if(es3_functions.glPauseTransformFeedback) es3_functions.glPauseTransformFeedback();
+}
+
+void glResumeTransformFeedback(void) {
+    if(!current_context) return;
+    if(es3_functions.glResumeTransformFeedback) es3_functions.glResumeTransformFeedback();
+}
+
+void glStencilFunc(GLenum func, GLint ref, GLuint mask) {
+    if(!current_context) return;
+    if(es3_functions.glStencilFunc) es3_functions.glStencilFunc(func, ref, mask);
+}
+
+void glStencilFuncSeparate(GLenum face, GLenum func, GLint ref, GLuint mask) {
+    if(!current_context) return;
+    if(es3_functions.glStencilFuncSeparate) es3_functions.glStencilFuncSeparate(face, func, ref, mask);
+}
+
+void glStencilMask(GLuint mask) {
+    if(!current_context) return;
+    if(es3_functions.glStencilMask) es3_functions.glStencilMask(mask);
+}
+
+void glStencilMaskSeparate(GLenum face, GLuint mask) {
+    if(!current_context) return;
+    if(es3_functions.glStencilMaskSeparate) es3_functions.glStencilMaskSeparate(face, mask);
+}
+
+void glStencilOp(GLenum fail, GLenum zfail, GLenum zpass) {
+    if(!current_context) return;
+    if(es3_functions.glStencilOp) es3_functions.glStencilOp(fail, zfail, zpass);
+}
+
+void glStencilOpSeparate(GLenum face, GLenum sfail, GLenum dpfail, GLenum dppass) {
+    if(!current_context) return;
+    if(es3_functions.glStencilOpSeparate) es3_functions.glStencilOpSeparate(face, sfail, dpfail, dppass);
+}
+
+void glBlendColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) {
+    if(!current_context) return;
+    if(es3_functions.glBlendColor) es3_functions.glBlendColor(red, green, blue, alpha);
+}
+
+void glBlendEquation(GLenum mode) {
+    if(!current_context) return;
+    if(es3_functions.glBlendEquation) es3_functions.glBlendEquation(mode);
+}
+
+void glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha) {
+    if(!current_context) return;
+    if(es3_functions.glBlendEquationSeparate) es3_functions.glBlendEquationSeparate(modeRGB, modeAlpha);
+}
+
+void glBlendFunc(GLenum sfactor, GLenum dfactor) {
+    if(!current_context) return;
+    if(es3_functions.glBlendFunc) es3_functions.glBlendFunc(sfactor, dfactor);
+}
+
+void glBlendFuncSeparate(GLenum sfactorRGB, GLenum dfactorRGB, GLenum sfactorAlpha, GLenum dfactorAlpha) {
+    if(!current_context) return;
+    if(es3_functions.glBlendFuncSeparate) es3_functions.glBlendFuncSeparate(sfactorRGB, dfactorRGB, sfactorAlpha, dfactorAlpha);
+}

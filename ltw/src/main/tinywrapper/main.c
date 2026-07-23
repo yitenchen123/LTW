@@ -583,3 +583,338 @@ void glDebugMessageControl( 	GLenum source,
                                GLboolean enabled) {
     //STUB
 }
+
+/* GLES 2.0/3.0 core state / texture / sampler / draw / getter forwarders.
+ * Same STUBFUNC->forwarder fix as the buffer/shader/vertexattrib wrappers:
+ * ANGLE need not export core static entries via eglGetProcAddress, so LTW
+ * previously returned no-op stubs (glClear/glViewport/glEnable/glDrawArrays
+ * etc. silently did nothing). Forward to es3_functions host pointers. */
+void glActiveTexture(GLenum texture) {
+    if(!current_context) return;
+    if(es3_functions.glActiveTexture) es3_functions.glActiveTexture(texture);
+}
+
+void glBindSampler(GLuint unit, GLuint sampler) {
+    if(!current_context) return;
+    if(es3_functions.glBindSampler) es3_functions.glBindSampler(unit, sampler);
+}
+
+void glBindTexture(GLenum target, GLuint texture) {
+    if(!current_context) return;
+    if(es3_functions.glBindTexture) es3_functions.glBindTexture(target, texture);
+}
+
+void glBindVertexArray(GLuint array) {
+    if(!current_context) return;
+    if(es3_functions.glBindVertexArray) es3_functions.glBindVertexArray(array);
+}
+
+void glClear(GLbitfield mask) {
+    if(!current_context) return;
+    if(es3_functions.glClear) es3_functions.glClear(mask);
+}
+
+void glClearColor(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha) {
+    if(!current_context) return;
+    if(es3_functions.glClearColor) es3_functions.glClearColor(red, green, blue, alpha);
+}
+
+void glClearDepthf(GLfloat d) {
+    if(!current_context) return;
+    if(es3_functions.glClearDepthf) es3_functions.glClearDepthf(d);
+}
+
+void glClearStencil(GLint s) {
+    if(!current_context) return;
+    if(es3_functions.glClearStencil) es3_functions.glClearStencil(s);
+}
+
+void glColorMask(GLboolean red, GLboolean green, GLboolean blue, GLboolean alpha) {
+    if(!current_context) return;
+    if(es3_functions.glColorMask) es3_functions.glColorMask(red, green, blue, alpha);
+}
+
+void glCompressedTexImage2D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLint border, GLsizei imageSize, const void *data) {
+    if(!current_context) return;
+    if(es3_functions.glCompressedTexImage2D) es3_functions.glCompressedTexImage2D(target, level, internalformat, width, height, border, imageSize, data);
+}
+
+void glCompressedTexImage3D(GLenum target, GLint level, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLsizei imageSize, const void *data) {
+    if(!current_context) return;
+    if(es3_functions.glCompressedTexImage3D) es3_functions.glCompressedTexImage3D(target, level, internalformat, width, height, depth, border, imageSize, data);
+}
+
+void glCompressedTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width, GLsizei height, GLenum format, GLsizei imageSize, const void *data) {
+    if(!current_context) return;
+    if(es3_functions.glCompressedTexSubImage2D) es3_functions.glCompressedTexSubImage2D(target, level, xoffset, yoffset, width, height, format, imageSize, data);
+}
+
+void glCompressedTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLsizei imageSize, const void *data) {
+    if(!current_context) return;
+    if(es3_functions.glCompressedTexSubImage3D) es3_functions.glCompressedTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, imageSize, data);
+}
+
+void glCopyBufferSubData(GLenum readTarget, GLenum writeTarget, GLintptr readOffset, GLintptr writeOffset, GLsizeiptr size) {
+    if(!current_context) return;
+    if(es3_functions.glCopyBufferSubData) es3_functions.glCopyBufferSubData(readTarget, writeTarget, readOffset, writeOffset, size);
+}
+
+void glCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border) {
+    if(!current_context) return;
+    if(es3_functions.glCopyTexImage2D) es3_functions.glCopyTexImage2D(target, level, internalformat, x, y, width, height, border);
+}
+
+void glCopyTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLint x, GLint y, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glCopyTexSubImage3D) es3_functions.glCopyTexSubImage3D(target, level, xoffset, yoffset, zoffset, x, y, width, height);
+}
+
+void glCullFace(GLenum mode) {
+    if(!current_context) return;
+    if(es3_functions.glCullFace) es3_functions.glCullFace(mode);
+}
+
+void glDeleteSamplers(GLsizei count, const GLuint *samplers) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteSamplers) es3_functions.glDeleteSamplers(count, samplers);
+}
+
+void glDeleteVertexArrays(GLsizei n, const GLuint *arrays) {
+    if(!current_context) return;
+    if(es3_functions.glDeleteVertexArrays) es3_functions.glDeleteVertexArrays(n, arrays);
+}
+
+void glDepthFunc(GLenum func) {
+    if(!current_context) return;
+    if(es3_functions.glDepthFunc) es3_functions.glDepthFunc(func);
+}
+
+void glDepthMask(GLboolean flag) {
+    if(!current_context) return;
+    if(es3_functions.glDepthMask) es3_functions.glDepthMask(flag);
+}
+
+void glDepthRangef(GLfloat n, GLfloat f) {
+    if(!current_context) return;
+    if(es3_functions.glDepthRangef) es3_functions.glDepthRangef(n, f);
+}
+
+void glDisable(GLenum cap) {
+    if(!current_context) return;
+    if(es3_functions.glDisable) es3_functions.glDisable(cap);
+}
+
+void glDrawArrays(GLenum mode, GLint first, GLsizei count) {
+    if(!current_context) return;
+    if(es3_functions.glDrawArrays) es3_functions.glDrawArrays(mode, first, count);
+}
+
+void glDrawElements(GLenum mode, GLsizei count, GLenum type, const void *indices) {
+    if(!current_context) return;
+    if(es3_functions.glDrawElements) es3_functions.glDrawElements(mode, count, type, indices);
+}
+
+void glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei instancecount) {
+    if(!current_context) return;
+    if(es3_functions.glDrawElementsInstanced) es3_functions.glDrawElementsInstanced(mode, count, type, indices, instancecount);
+}
+
+void glDrawRangeElements(GLenum mode, GLuint start, GLuint end, GLsizei count, GLenum type, const void *indices) {
+    if(!current_context) return;
+    if(es3_functions.glDrawRangeElements) es3_functions.glDrawRangeElements(mode, start, end, count, type, indices);
+}
+
+void glFinish(void) {
+    if(!current_context) return;
+    if(es3_functions.glFinish) es3_functions.glFinish();
+}
+
+void glFlush(void) {
+    if(!current_context) return;
+    if(es3_functions.glFlush) es3_functions.glFlush();
+}
+
+void glFrontFace(GLenum mode) {
+    if(!current_context) return;
+    if(es3_functions.glFrontFace) es3_functions.glFrontFace(mode);
+}
+
+void glGenSamplers(GLsizei count, GLuint *samplers) {
+    if(!current_context) return;
+    if(es3_functions.glGenSamplers) es3_functions.glGenSamplers(count, samplers);
+}
+
+void glGenTextures(GLsizei n, GLuint *textures) {
+    if(!current_context) return;
+    if(es3_functions.glGenTextures) es3_functions.glGenTextures(n, textures);
+}
+
+void glGenVertexArrays(GLsizei n, GLuint *arrays) {
+    if(!current_context) return;
+    if(es3_functions.glGenVertexArrays) es3_functions.glGenVertexArrays(n, arrays);
+}
+
+void glGenerateMipmap(GLenum target) {
+    if(!current_context) return;
+    if(es3_functions.glGenerateMipmap) es3_functions.glGenerateMipmap(target);
+}
+
+void glGetBooleanv(GLenum pname, GLboolean *data) {
+    if(!current_context) return;
+    if(es3_functions.glGetBooleanv) es3_functions.glGetBooleanv(pname, data);
+}
+
+void glGetBufferParameteri64v(GLenum target, GLenum pname, GLint64 *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetBufferParameteri64v) es3_functions.glGetBufferParameteri64v(target, pname, params);
+}
+
+void glGetInteger64i_v(GLenum target, GLuint index, GLint64 *data) {
+    if(!current_context) return;
+    if(es3_functions.glGetInteger64i_v) es3_functions.glGetInteger64i_v(target, index, data);
+}
+
+void glGetInteger64v(GLenum pname, GLint64 *data) {
+    if(!current_context) return;
+    if(es3_functions.glGetInteger64v) es3_functions.glGetInteger64v(pname, data);
+}
+
+void glGetIntegeri_v(GLenum target, GLuint index, GLint *data) {
+    if(!current_context) return;
+    if(es3_functions.glGetIntegeri_v) es3_functions.glGetIntegeri_v(target, index, data);
+}
+
+void glGetInternalformativ(GLenum target, GLenum internalformat, GLenum pname, GLsizei bufSize, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetInternalformativ) es3_functions.glGetInternalformativ(target, internalformat, pname, bufSize, params);
+}
+
+void glGetSamplerParameterfv(GLuint sampler, GLenum pname, GLfloat *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetSamplerParameterfv) es3_functions.glGetSamplerParameterfv(sampler, pname, params);
+}
+
+void glGetSamplerParameteriv(GLuint sampler, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetSamplerParameteriv) es3_functions.glGetSamplerParameteriv(sampler, pname, params);
+}
+
+void glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetTexParameterfv) es3_functions.glGetTexParameterfv(target, pname, params);
+}
+
+void glGetTexParameteriv(GLenum target, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetTexParameteriv) es3_functions.glGetTexParameteriv(target, pname, params);
+}
+
+void glHint(GLenum target, GLenum mode) {
+    if(!current_context) return;
+    if(es3_functions.glHint) es3_functions.glHint(target, mode);
+}
+
+GLboolean glIsEnabled(GLenum cap) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsEnabled) return es3_functions.glIsEnabled(cap);
+    return GL_FALSE;
+}
+
+GLboolean glIsFramebuffer(GLuint framebuffer) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsFramebuffer) return es3_functions.glIsFramebuffer(framebuffer);
+    return GL_FALSE;
+}
+
+GLboolean glIsSampler(GLuint sampler) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsSampler) return es3_functions.glIsSampler(sampler);
+    return GL_FALSE;
+}
+
+GLboolean glIsTexture(GLuint texture) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsTexture) return es3_functions.glIsTexture(texture);
+    return GL_FALSE;
+}
+
+GLboolean glIsVertexArray(GLuint array) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsVertexArray) return es3_functions.glIsVertexArray(array);
+    return GL_FALSE;
+}
+
+void glLineWidth(GLfloat width) {
+    if(!current_context) return;
+    if(es3_functions.glLineWidth) es3_functions.glLineWidth(width);
+}
+
+void glPixelStorei(GLenum pname, GLint param) {
+    if(!current_context) return;
+    if(es3_functions.glPixelStorei) es3_functions.glPixelStorei(pname, param);
+}
+
+void glPolygonOffset(GLfloat factor, GLfloat units) {
+    if(!current_context) return;
+    if(es3_functions.glPolygonOffset) es3_functions.glPolygonOffset(factor, units);
+}
+
+void glSampleCoverage(GLclampf value, GLboolean invert) {
+    if(!current_context) return;
+    if(es3_functions.glSampleCoverage) es3_functions.glSampleCoverage(value, invert);
+}
+
+void glSamplerParameterf(GLuint sampler, GLenum pname, GLfloat param) {
+    if(!current_context) return;
+    if(es3_functions.glSamplerParameterf) es3_functions.glSamplerParameterf(sampler, pname, param);
+}
+
+void glSamplerParameterfv(GLuint sampler, GLenum pname, const GLfloat *param) {
+    if(!current_context) return;
+    if(es3_functions.glSamplerParameterfv) es3_functions.glSamplerParameterfv(sampler, pname, param);
+}
+
+void glSamplerParameteri(GLuint sampler, GLenum pname, GLint param) {
+    if(!current_context) return;
+    if(es3_functions.glSamplerParameteri) es3_functions.glSamplerParameteri(sampler, pname, param);
+}
+
+void glSamplerParameteriv(GLuint sampler, GLenum pname, const GLint *param) {
+    if(!current_context) return;
+    if(es3_functions.glSamplerParameteriv) es3_functions.glSamplerParameteriv(sampler, pname, param);
+}
+
+void glScissor(GLint x, GLint y, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glScissor) es3_functions.glScissor(x, y, width, height);
+}
+
+void glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels) {
+    if(!current_context) return;
+    if(es3_functions.glTexImage3D) es3_functions.glTexImage3D(target, level, internalformat, width, height, depth, border, format, type, pixels);
+}
+
+void glTexStorage2D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glTexStorage2D) es3_functions.glTexStorage2D(target, levels, internalformat, width, height);
+}
+
+void glTexStorage3D(GLenum target, GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height, GLsizei depth) {
+    if(!current_context) return;
+    if(es3_functions.glTexStorage3D) es3_functions.glTexStorage3D(target, levels, internalformat, width, height, depth);
+}
+
+void glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels) {
+    if(!current_context) return;
+    if(es3_functions.glTexSubImage3D) es3_functions.glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+}
+
+void glViewport(GLint x, GLint y, GLsizei width, GLsizei height) {
+    if(!current_context) return;
+    if(es3_functions.glViewport) es3_functions.glViewport(x, y, width, height);
+}
+
+void glDrawArraysInstanced(GLenum mode, GLint first, GLsizei count, GLsizei instancecount) {
+    if(!current_context) return;
+    if(es3_functions.glDrawArraysInstanced) es3_functions.glDrawArraysInstanced(mode, first, count, instancecount);
+}

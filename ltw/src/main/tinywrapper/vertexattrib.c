@@ -256,3 +256,92 @@ void glVertexAttrib4Niv( 	GLuint index,
             inormalize(v[3])
     );
 }
+
+/* GLES 2.0/3.0 core vertex-attrib forwarders. Same STUBFUNC->forwarder fix
+ * as the buffer/shader wrappers: ANGLE need not export these core static
+ * entries via eglGetProcAddress, so LTW previously handed out no-op stubs.
+ * These forward to the host pointer resolved into es3_functions at init. */
+void glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribPointer) es3_functions.glVertexAttribPointer(index, size, type, normalized, stride, pointer);
+}
+
+void glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribIPointer) es3_functions.glVertexAttribIPointer(index, size, type, stride, pointer);
+}
+
+void glVertexAttribI4i(GLuint index, GLint x, GLint y, GLint z, GLint w) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribI4i) es3_functions.glVertexAttribI4i(index, x, y, z, w);
+}
+
+void glVertexAttribI4ui(GLuint index, GLuint x, GLuint y, GLuint z, GLuint w) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribI4ui) es3_functions.glVertexAttribI4ui(index, x, y, z, w);
+}
+
+void glVertexAttribI4iv(GLuint index, const GLint *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribI4iv) es3_functions.glVertexAttribI4iv(index, v);
+}
+
+void glVertexAttribI4uiv(GLuint index, const GLuint *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribI4uiv) es3_functions.glVertexAttribI4uiv(index, v);
+}
+
+void glGetVertexAttribIiv(GLuint index, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetVertexAttribIiv) es3_functions.glGetVertexAttribIiv(index, pname, params);
+}
+
+void glGetVertexAttribIuiv(GLuint index, GLenum pname, GLuint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetVertexAttribIuiv) es3_functions.glGetVertexAttribIuiv(index, pname, params);
+}
+
+void glVertexAttrib1f(GLuint index, GLfloat x) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib1f) es3_functions.glVertexAttrib1f(index, x);
+}
+
+void glVertexAttrib1fv(GLuint index, const GLfloat *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib1fv) es3_functions.glVertexAttrib1fv(index, v);
+}
+
+void glVertexAttrib2f(GLuint index, GLfloat x, GLfloat y) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib2f) es3_functions.glVertexAttrib2f(index, x, y);
+}
+
+void glVertexAttrib2fv(GLuint index, const GLfloat *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib2fv) es3_functions.glVertexAttrib2fv(index, v);
+}
+
+void glVertexAttrib3f(GLuint index, GLfloat x, GLfloat y, GLfloat z) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib3f) es3_functions.glVertexAttrib3f(index, x, y, z);
+}
+
+void glVertexAttrib3fv(GLuint index, const GLfloat *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib3fv) es3_functions.glVertexAttrib3fv(index, v);
+}
+
+void glVertexAttrib4f(GLuint index, GLfloat x, GLfloat y, GLfloat z, GLfloat w) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib4f) es3_functions.glVertexAttrib4f(index, x, y, z, w);
+}
+
+void glVertexAttrib4fv(GLuint index, const GLfloat *v) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttrib4fv) es3_functions.glVertexAttrib4fv(index, v);
+}
+
+void glVertexAttribDivisor(GLuint index, GLuint divisor) {
+    if(!current_context) return;
+    if(es3_functions.glVertexAttribDivisor) es3_functions.glVertexAttribDivisor(index, divisor);
+}

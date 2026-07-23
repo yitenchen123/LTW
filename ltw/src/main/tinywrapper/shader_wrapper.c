@@ -206,3 +206,357 @@ void glShaderSource(GLuint shader, GLsizei count, const GLchar *const*string, co
     end:
     free(target_string);
 }
+
+// GLES 2.0/3.0 core shader & program functions that LTW previously left as
+// empty STUBFUNCs. Same root cause as glGetFloatv / glGenQueries / glBufferData:
+// ANGLE need not export core static entries through eglGetProcAddress, so MC
+// got no-op stubs and shader compilation silently did nothing -> every
+// pipeline failed to load. These thin forwarders call the host pointers
+// already resolved into es3_functions at init. Android is unaffected (system
+// ES statically exports them; LWJGL resolves via dlsym).
+
+void glCompileShader(GLuint shader) {
+    if(!current_context) return;
+    if(es3_functions.glCompileShader) es3_functions.glCompileShader(shader);
+}
+void glDetachShader(GLuint program, GLuint shader) {
+    if(!current_context) return;
+    if(es3_functions.glDetachShader) es3_functions.glDetachShader(program, shader);
+}
+void glBindAttribLocation(GLuint program, GLuint index, const GLchar* name) {
+    if(!current_context) return;
+    if(es3_functions.glBindAttribLocation) es3_functions.glBindAttribLocation(program, index, name);
+}
+GLint glGetAttribLocation(GLuint program, const GLchar* name) {
+    if(!current_context) return -1;
+    if(es3_functions.glGetAttribLocation) return es3_functions.glGetAttribLocation(program, name);
+    return -1;
+}
+GLint glGetUniformLocation(GLuint program, const GLchar* name) {
+    if(!current_context) return -1;
+    if(es3_functions.glGetUniformLocation) return es3_functions.glGetUniformLocation(program, name);
+    return -1;
+}
+void glGetProgramiv(GLuint program, GLenum pname, GLint* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetProgramiv) es3_functions.glGetProgramiv(program, pname, params);
+}
+void glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei* length, GLchar* infoLog) {
+    if(!current_context) return;
+    if(es3_functions.glGetProgramInfoLog) es3_functions.glGetProgramInfoLog(program, bufSize, length, infoLog);
+}
+void glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* infoLog) {
+    if(!current_context) return;
+    if(es3_functions.glGetShaderInfoLog) es3_functions.glGetShaderInfoLog(shader, bufSize, length, infoLog);
+}
+void glGetShaderSource(GLuint shader, GLsizei bufSize, GLsizei* length, GLchar* source) {
+    if(!current_context) return;
+    if(es3_functions.glGetShaderSource) es3_functions.glGetShaderSource(shader, bufSize, length, source);
+}
+GLboolean glIsProgram(GLuint program) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsProgram) return es3_functions.glIsProgram(program);
+    return GL_FALSE;
+}
+GLboolean glIsShader(GLuint shader) {
+    if(!current_context) return GL_FALSE;
+    if(es3_functions.glIsShader) return es3_functions.glIsShader(shader);
+    return GL_FALSE;
+}
+void glValidateProgram(GLuint program) {
+    if(!current_context) return;
+    if(es3_functions.glValidateProgram) es3_functions.glValidateProgram(program);
+}
+void glGetActiveAttrib(GLuint program, GLuint index, GLsizei bufSize, GLsizei* length, GLint* size, GLenum* type, GLchar* name) {
+    if(!current_context) return;
+    if(es3_functions.glGetActiveAttrib) es3_functions.glGetActiveAttrib(program, index, bufSize, length, size, type, name);
+}
+void glGetActiveUniform(GLuint program, GLuint index, GLsizei bufSize, GLsizei* length, GLint* size, GLenum* type, GLchar* name) {
+    if(!current_context) return;
+    if(es3_functions.glGetActiveUniform) es3_functions.glGetActiveUniform(program, index, bufSize, length, size, type, name);
+}
+void glGetAttachedShaders(GLuint program, GLsizei maxCount, GLsizei* count, GLuint* shaders) {
+    if(!current_context) return;
+    if(es3_functions.glGetAttachedShaders) es3_functions.glGetAttachedShaders(program, maxCount, count, shaders);
+}
+void glGetUniformfv(GLuint program, GLint location, GLfloat* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetUniformfv) es3_functions.glGetUniformfv(program, location, params);
+}
+void glGetUniformiv(GLuint program, GLint location, GLint* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetUniformiv) es3_functions.glGetUniformiv(program, location, params);
+}
+void glDisableVertexAttribArray(GLuint index) {
+    if(!current_context) return;
+    if(es3_functions.glDisableVertexAttribArray) es3_functions.glDisableVertexAttribArray(index);
+}
+void glEnableVertexAttribArray(GLuint index) {
+    if(!current_context) return;
+    if(es3_functions.glEnableVertexAttribArray) es3_functions.glEnableVertexAttribArray(index);
+}
+void glGetVertexAttribfv(GLuint index, GLenum pname, GLfloat* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetVertexAttribfv) es3_functions.glGetVertexAttribfv(index, pname, params);
+}
+void glGetVertexAttribiv(GLuint index, GLenum pname, GLint* params) {
+    if(!current_context) return;
+    if(es3_functions.glGetVertexAttribiv) es3_functions.glGetVertexAttribiv(index, pname, params);
+}
+void glGetVertexAttribPointerv(GLuint index, GLenum pname, void** pointer) {
+    if(!current_context) return;
+    if(es3_functions.glGetVertexAttribPointerv) es3_functions.glGetVertexAttribPointerv(index, pname, pointer);
+}
+
+/* GLES 2.0/3.0 core uniform / program / shader forwarders. Continued from
+ * the glGetVertexAttribPointerv block above. Same STUBFUNC->forwarder fix:
+ * ANGLE need not export core static entries via eglGetProcAddress, so LTW
+ * previously returned no-op stubs for the glUniform, glUniformMatrix, program
+ * binary and precision-format calls, silently breaking every MC shader
+ * pipeline. */
+void glUniform1f(GLint location, GLfloat v0) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1f) es3_functions.glUniform1f(location, v0);
+}
+
+void glUniform1fv(GLint location, GLsizei count, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1fv) es3_functions.glUniform1fv(location, count, value);
+}
+
+void glUniform1i(GLint location, GLint v0) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1i) es3_functions.glUniform1i(location, v0);
+}
+
+void glUniform1iv(GLint location, GLsizei count, const GLint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1iv) es3_functions.glUniform1iv(location, count, value);
+}
+
+void glUniform2f(GLint location, GLfloat v0, GLfloat v1) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2f) es3_functions.glUniform2f(location, v0, v1);
+}
+
+void glUniform2fv(GLint location, GLsizei count, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2fv) es3_functions.glUniform2fv(location, count, value);
+}
+
+void glUniform2i(GLint location, GLint v0, GLint v1) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2i) es3_functions.glUniform2i(location, v0, v1);
+}
+
+void glUniform2iv(GLint location, GLsizei count, const GLint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2iv) es3_functions.glUniform2iv(location, count, value);
+}
+
+void glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3f) es3_functions.glUniform3f(location, v0, v1, v2);
+}
+
+void glUniform3fv(GLint location, GLsizei count, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3fv) es3_functions.glUniform3fv(location, count, value);
+}
+
+void glUniform3i(GLint location, GLint v0, GLint v1, GLint v2) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3i) es3_functions.glUniform3i(location, v0, v1, v2);
+}
+
+void glUniform3iv(GLint location, GLsizei count, const GLint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3iv) es3_functions.glUniform3iv(location, count, value);
+}
+
+void glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4f) es3_functions.glUniform4f(location, v0, v1, v2, v3);
+}
+
+void glUniform4fv(GLint location, GLsizei count, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4fv) es3_functions.glUniform4fv(location, count, value);
+}
+
+void glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4i) es3_functions.glUniform4i(location, v0, v1, v2, v3);
+}
+
+void glUniform4iv(GLint location, GLsizei count, const GLint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4iv) es3_functions.glUniform4iv(location, count, value);
+}
+
+void glUniform1ui(GLint location, GLuint v0) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1ui) es3_functions.glUniform1ui(location, v0);
+}
+
+void glUniform1uiv(GLint location, GLsizei count, const GLuint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform1uiv) es3_functions.glUniform1uiv(location, count, value);
+}
+
+void glUniform2ui(GLint location, GLuint v0, GLuint v1) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2ui) es3_functions.glUniform2ui(location, v0, v1);
+}
+
+void glUniform2uiv(GLint location, GLsizei count, const GLuint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform2uiv) es3_functions.glUniform2uiv(location, count, value);
+}
+
+void glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3ui) es3_functions.glUniform3ui(location, v0, v1, v2);
+}
+
+void glUniform3uiv(GLint location, GLsizei count, const GLuint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform3uiv) es3_functions.glUniform3uiv(location, count, value);
+}
+
+void glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4ui) es3_functions.glUniform4ui(location, v0, v1, v2, v3);
+}
+
+void glUniform4uiv(GLint location, GLsizei count, const GLuint *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniform4uiv) es3_functions.glUniform4uiv(location, count, value);
+}
+
+void glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix2fv) es3_functions.glUniformMatrix2fv(location, count, transpose, value);
+}
+
+void glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix3fv) es3_functions.glUniformMatrix3fv(location, count, transpose, value);
+}
+
+void glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix4fv) es3_functions.glUniformMatrix4fv(location, count, transpose, value);
+}
+
+void glUniformMatrix2x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix2x3fv) es3_functions.glUniformMatrix2x3fv(location, count, transpose, value);
+}
+
+void glUniformMatrix3x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix3x2fv) es3_functions.glUniformMatrix3x2fv(location, count, transpose, value);
+}
+
+void glUniformMatrix2x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix2x4fv) es3_functions.glUniformMatrix2x4fv(location, count, transpose, value);
+}
+
+void glUniformMatrix4x2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix4x2fv) es3_functions.glUniformMatrix4x2fv(location, count, transpose, value);
+}
+
+void glUniformMatrix3x4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix3x4fv) es3_functions.glUniformMatrix3x4fv(location, count, transpose, value);
+}
+
+void glUniformMatrix4x3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value) {
+    if(!current_context) return;
+    if(es3_functions.glUniformMatrix4x3fv) es3_functions.glUniformMatrix4x3fv(location, count, transpose, value);
+}
+
+void glGetUniformuiv(GLuint program, GLint location, GLuint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetUniformuiv) es3_functions.glGetUniformuiv(program, location, params);
+}
+
+GLint glGetFragDataLocation(GLuint program, const GLchar *name) {
+    if(!current_context) return -1;
+    if(es3_functions.glGetFragDataLocation) return es3_functions.glGetFragDataLocation(program, name);
+    return -1;
+}
+
+void glGetUniformIndices(GLuint program, GLsizei uniformCount, const GLchar *const*uniformNames, GLuint *uniformIndices) {
+    if(!current_context) return;
+    if(es3_functions.glGetUniformIndices) es3_functions.glGetUniformIndices(program, uniformCount, uniformNames, uniformIndices);
+}
+
+void glGetActiveUniformsiv(GLuint program, GLsizei uniformCount, const GLuint *uniformIndices, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetActiveUniformsiv) es3_functions.glGetActiveUniformsiv(program, uniformCount, uniformIndices, pname, params);
+}
+
+GLuint glGetUniformBlockIndex(GLuint program, const GLchar *uniformBlockName) {
+    if(!current_context) return 0;
+    if(es3_functions.glGetUniformBlockIndex) return es3_functions.glGetUniformBlockIndex(program, uniformBlockName);
+    return 0;
+}
+
+void glGetActiveUniformBlockiv(GLuint program, GLuint uniformBlockIndex, GLenum pname, GLint *params) {
+    if(!current_context) return;
+    if(es3_functions.glGetActiveUniformBlockiv) es3_functions.glGetActiveUniformBlockiv(program, uniformBlockIndex, pname, params);
+}
+
+void glGetActiveUniformBlockName(GLuint program, GLuint uniformBlockIndex, GLsizei bufSize, GLsizei *length, GLchar *uniformBlockName) {
+    if(!current_context) return;
+    if(es3_functions.glGetActiveUniformBlockName) es3_functions.glGetActiveUniformBlockName(program, uniformBlockIndex, bufSize, length, uniformBlockName);
+}
+
+void glUniformBlockBinding(GLuint program, GLuint uniformBlockIndex, GLuint uniformBlockBinding) {
+    if(!current_context) return;
+    if(es3_functions.glUniformBlockBinding) es3_functions.glUniformBlockBinding(program, uniformBlockIndex, uniformBlockBinding);
+}
+
+void glGetShaderPrecisionFormat(GLenum shadertype, GLenum precisiontype, GLint *range, GLint *precision) {
+    if(!current_context) return;
+    if(es3_functions.glGetShaderPrecisionFormat) es3_functions.glGetShaderPrecisionFormat(shadertype, precisiontype, range, precision);
+}
+
+void glReleaseShaderCompiler(void) {
+    if(!current_context) return;
+    if(es3_functions.glReleaseShaderCompiler) es3_functions.glReleaseShaderCompiler();
+}
+
+void glShaderBinary(GLsizei count, const GLuint *shaders, GLenum binaryformat, const void *binary, GLsizei length) {
+    if(!current_context) return;
+    if(es3_functions.glShaderBinary) es3_functions.glShaderBinary(count, shaders, binaryformat, binary, length);
+}
+
+void glGetProgramBinary(GLuint program, GLsizei bufSize, GLsizei *length, GLenum *binaryFormat, void *binary) {
+    if(!current_context) return;
+    if(es3_functions.glGetProgramBinary) es3_functions.glGetProgramBinary(program, bufSize, length, binaryFormat, binary);
+}
+
+void glProgramBinary(GLuint program, GLenum binaryFormat, const void *binary, GLsizei length) {
+    if(!current_context) return;
+    if(es3_functions.glProgramBinary) es3_functions.glProgramBinary(program, binaryFormat, binary, length);
+}
+
+void glProgramParameteri(GLuint program, GLenum pname, GLint value) {
+    if(!current_context) return;
+    if(es3_functions.glProgramParameteri) es3_functions.glProgramParameteri(program, pname, value);
+}
+
+void glTransformFeedbackVaryings(GLuint program, GLsizei count, const GLchar *const*varyings, GLenum bufferMode) {
+    if(!current_context) return;
+    if(es3_functions.glTransformFeedbackVaryings) es3_functions.glTransformFeedbackVaryings(program, count, varyings, bufferMode);
+}
+
+void glGetTransformFeedbackVarying(GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLsizei *size, GLenum *type, GLchar *name) {
+    if(!current_context) return;
+    if(es3_functions.glGetTransformFeedbackVarying) es3_functions.glGetTransformFeedbackVarying(program, index, bufSize, length, size, type, name);
+}
