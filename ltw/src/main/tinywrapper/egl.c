@@ -75,11 +75,45 @@ static void free_context(context_t* tw_context) {
     }
 }
 
+// On ES 3.0+, glGetString(GL_EXTENSIONS) is deprecated and some Metal-backed
+// drivers (ANGLE, MobileGlues) return NULL or an empty string. Fall back to
+// the spec-compliant glGetStringi(GL_EXTENSIONS, i) enumeration so LTW -- and
+// through it Minecraft -- sees the real capability set. Detection-only: no
+// emulation, no shader rewriting.
+static char* build_host_extensions() {
+    const char* ext = (const char*) es3_functions.glGetString(GL_EXTENSIONS);
+    if(ext && ext[0]) {
+        char* copy = malloc(strlen(ext) + 1);
+        strcpy(copy, ext);
+        return copy;
+    }
+    GLint num = 0;
+    es3_functions.glGetIntegerv(GL_NUM_EXTENSIONS, &num);
+    if(num <= 0) {
+        char* empty = malloc(1);
+        empty[0] = 0;
+        return empty;
+    }
+    size_t total = 1;
+    for(GLint i = 0; i < num; i++) {
+        const GLubyte* e = es3_functions.glGetStringi(GL_EXTENSIONS, (GLuint)i);
+        if(e) total += strlen((const char*)e) + 1;
+    }
+    char* combined = malloc(total);
+    combined[0] = 0;
+    for(GLint i = 0; i < num; i++) {
+        const GLubyte* e = es3_functions.glGetStringi(GL_EXTENSIONS, (GLuint)i);
+        if(e) {
+            if(combined[0]) strcat(combined, " ");
+            strcat(combined, (const char*)e);
+        }
+    }
+    return combined;
+}
+
 void init_extra_extensions(context_t* context, int* length) {
-    const char* es_extensions = (const char*)es3_functions.glGetString(GL_EXTENSIONS);
-    *length = (int)strlen(es_extensions);
-    context->extensions_string = malloc(*length + 1);
-    memcpy(context->extensions_string, es_extensions, *length+1);
+    context->extensions_string = build_host_extensions();
+    *length = (int)strlen(context->extensions_string);
 }
 
 void add_extra_extension(context_t* context, int* length, const char* extension)  {
@@ -151,21 +185,28 @@ static void find_esversion(context_t* context) {
         context->es32 = context->es31 = true;
     }
 
-    const char* extensions = (const char*) es3_functions.glGetString(GL_EXTENSIONS);
+    char* extensions = build_host_extensions();
+    printf("LTW: Host extensions: %.800s\n", extensions);
     if(strstr(extensions, "GL_EXT_buffer_storage")) context->buffer_storage = true;
     if(strstr(extensions, "GL_EXT_texture_buffer")) context->buffer_texture_ext = true;
     if(strstr(extensions, "GL_EXT_multi_draw_indirect")) context->multidraw_indirect = true;
 
-    // Some ANGLE/Metal builds do not expose GL_EXT_texture_buffer even though
-    // the host actually supports glTexBufferEXT (the function pointer resolves
-    // fine). Minecraft 26.2's cloud shader requires GL_ARB_texture_buffer_object
-    // (LTW's desktop-GL alias for the ES extension) and aborts at compile time
-    // if it is missing. LTW_FORCE_TEXTURE_BUFFER lets the user declare the
-    // extension unconditionally, mirroring the existing LTW_HIDE_BUFFER_STORAGE
-    // / LTW_ENABLE_TIMER_QUERY override pattern. It only flips the extension
-    // string -- the glTexBuffer/glTexBufferRange wrappers still route to
-    // glTexBufferEXT at runtime, so no rendering logic changes.
+    // Some backends (ANGLE/Metal, MobileGlues) export glTexBufferEXT without
+    // listing GL_EXT_texture_buffer in the extension string (or the string was
+    // unreachable via the deprecated glGetString path above). If the function
+    // pointer resolved at init, the backend can service buffer textures, so
+    // advertise the desktop alias GL_ARB_texture_buffer_object. Detection-only:
+    // glTexBuffer/glTexBufferRange still route to the host at runtime.
+    if(!context->buffer_texture_ext && es3_functions.glTexBufferEXT) {
+        context->buffer_texture_ext = true;
+        printf("LTW: glTexBufferEXT resolved but GL_EXT_texture_buffer absent from string; enabling buffer textures.\n");
+    }
+
+    // Manual override for backends where neither the string nor the function
+    // pointer is reachable but the GLSL compiler still accepts the extension.
     if(env_istrue_d("LTW_FORCE_TEXTURE_BUFFER", false)) context->buffer_texture_ext = true;
+    printf("LTW: buffer_texture_ext=%d es31=%d es32=%d glTexBufferEXT=%p\n",
+           context->buffer_texture_ext, context->es31, context->es32, (void*)es3_functions.glTexBufferEXT);
 
     // EXT_disjoint_timer_query provides accurate int64 timer queries
     // on Core Profile it's ARB_timer_query instead
@@ -203,6 +244,7 @@ static void find_esversion(context_t* context) {
         blend->available = false;
     }
 #undef SET_FUNC
+    free(extensions);
     build_extension_string(context);
 
     return;

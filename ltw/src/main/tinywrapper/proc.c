@@ -64,6 +64,7 @@ __attribute__((constructor, used)) void proc_init(){
         if(eglHandle == NULL)
             error_sysegl();
     }
+    printf("LTW: Loaded host EGL from %s\n", eglHandle == NULL ? "(null)" : eglPath);
     host_eglGetProcAddress = dlsym(eglHandle, "eglGetProcAddress");
     if(host_eglGetProcAddress == NULL) error_sysegl();
     init_egl();
