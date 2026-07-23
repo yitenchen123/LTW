@@ -50,6 +50,20 @@ different GLES backend build during debugging):
 LIBGL_EGL=/var/containers/Bundle/Application/.../Amethyst.app/Frameworks/libEGL.framework/libEGL
 ```
 
+## Runtime: extension overrides
+Some ANGLE/Metal builds do not advertise `GL_EXT_texture_buffer` in their
+extension string even though the host actually implements `glTexBufferEXT`.
+Minecraft 26.2's cloud shader requires `GL_ARB_texture_buffer_object` (LTW's
+desktop-GL alias for the ES extension) and aborts at compile time if it is
+missing. Set `LTW_FORCE_TEXTURE_BUFFER=1` to make LTW declare the extension
+unconditionally. This only flips the extension string — `glTexBuffer` /
+`glTexBufferRange` still route to `glTexBufferEXT` at runtime, so no rendering
+logic changes.
+
+```
+LTW_FORCE_TEXTURE_BUFFER=1
+```
+
 # Integration
 Drop `libltw.dylib` into the app bundle's `Frameworks/` directory. The launcher
 should load it as the GL provider (via `dlopen` or LD_PRELOAD equivalent) and

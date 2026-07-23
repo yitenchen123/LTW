@@ -156,6 +156,17 @@ static void find_esversion(context_t* context) {
     if(strstr(extensions, "GL_EXT_texture_buffer")) context->buffer_texture_ext = true;
     if(strstr(extensions, "GL_EXT_multi_draw_indirect")) context->multidraw_indirect = true;
 
+    // Some ANGLE/Metal builds do not expose GL_EXT_texture_buffer even though
+    // the host actually supports glTexBufferEXT (the function pointer resolves
+    // fine). Minecraft 26.2's cloud shader requires GL_ARB_texture_buffer_object
+    // (LTW's desktop-GL alias for the ES extension) and aborts at compile time
+    // if it is missing. LTW_FORCE_TEXTURE_BUFFER lets the user declare the
+    // extension unconditionally, mirroring the existing LTW_HIDE_BUFFER_STORAGE
+    // / LTW_ENABLE_TIMER_QUERY override pattern. It only flips the extension
+    // string -- the glTexBuffer/glTexBufferRange wrappers still route to
+    // glTexBufferEXT at runtime, so no rendering logic changes.
+    if(env_istrue_d("LTW_FORCE_TEXTURE_BUFFER", false)) context->buffer_texture_ext = true;
+
     // EXT_disjoint_timer_query provides accurate int64 timer queries
     // on Core Profile it's ARB_timer_query instead
     // This enables real time queries via mentioned extension, otherwise faked ones are used (see query.c)
