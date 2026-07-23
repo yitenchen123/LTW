@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "string_utils.h"
 #include "egl.h"
 #include "proc.h"
@@ -173,6 +174,229 @@ void glDeleteShader(GLuint shader) {
     free(old_shaderinfo);
 }
 
+/* --- samplerBuffer -> sampler2D source-level lowering ----------------------
+ * ANGLE's Metal ES 3.0 backend does not implement GL_EXT_texture_buffer, so
+ * its GLSL compiler rejects `samplerBuffer` ("Illegal use of reserved word")
+ * and the `#extension GL_EXT_texture_buffer : enable` directive that
+ * glsl_optimizer emits (ir_print_glsl_visitor.cpp). MobileGlues handles this
+ * in its own conversion layer; LTW does the same here, lowering buffer
+ * samplers to 2D samplers at the source level when the host has no
+ * GL_EXT_texture_buffer. Pure text transformation (no function overloads) to
+ * avoid MESA builtin signature conflicts.
+ *
+ *   #extension GL_EXT_texture_buffer : enable  -> (line dropped, blank kept)
+ *   samplerBuffer / isamplerBuffer / usamplerBuffer -> sampler2D variants
+ *   texelFetch(buf, x)   -> texelFetch(buf, ivec2(x, 0), 0)
+ *   textureSize(buf)     -> textureSize(buf, 0).x
+ * Only texelFetch/textureSize whose first argument is a declared buffer
+ * sampler variable are rewritten, so ordinary 2D/3D calls are untouched.
+ */
+static int ltw_is_ident(int c) {
+    return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+           (c >= '0' && c <= '9') || c == '_';
+}
+
+static int ltw_contains(const char* s, size_t n, const char* needle) {
+    size_t nl = strlen(needle);
+    if(nl > n) return 0;
+    for(size_t i = 0; i + nl <= n; i++)
+        if(memcmp(s + i, needle, nl) == 0) return 1;
+    return 0;
+}
+
+typedef struct { char** items; int count; int cap; } ltw_strlist;
+static void ltw_sl_push(ltw_strlist* l, const char* s, size_t n) {
+    if(l->count == l->cap) {
+        l->cap = l->cap ? l->cap * 2 : 8;
+        l->items = realloc(l->items, l->cap * sizeof(char*));
+    }
+    char* d = malloc(n + 1);
+    memcpy(d, s, n);
+    d[n] = 0;
+    l->items[l->count++] = d;
+}
+static int ltw_sl_has(ltw_strlist* l, const char* s, size_t n) {
+    for(int i = 0; i < l->count; i++)
+        if(strlen(l->items[i]) == n && memcmp(l->items[i], s, n) == 0) return 1;
+    return 0;
+}
+static void ltw_sl_free(ltw_strlist* l) {
+    for(int i = 0; i < l->count; i++) free(l->items[i]);
+    free(l->items);
+    l->items = NULL;
+    l->count = l->cap = 0;
+}
+
+/* Collect names of variables declared as buffer samplers. */
+static void ltw_collect_buf_samplers(const char* src, ltw_strlist* names) {
+    static const char* types[] = {"usamplerBuffer", "isamplerBuffer", "samplerBuffer"};
+    for(size_t t = 0; t < 3; t++) {
+        const char* needle = types[t];
+        size_t nlen = strlen(needle);
+        const char* p = src;
+        while((p = strstr(p, needle)) != NULL) {
+            size_t pos = (size_t)(p - src);
+            if(pos > 0 && ltw_is_ident((unsigned char)src[pos - 1])) { p += nlen; continue; }
+            if(ltw_is_ident((unsigned char)src[pos + nlen])) { p += nlen; continue; }
+            const char* q = p + nlen;
+            while(*q && isspace((unsigned char)*q)) q++;
+            const char* ns = q;
+            while(ltw_is_ident((unsigned char)*q)) q++;
+            size_t nl = (size_t)(q - ns);
+            if(nl > 0 && !ltw_sl_has(names, ns, nl)) ltw_sl_push(names, ns, nl);
+            p += nlen;
+        }
+    }
+}
+
+static char* ltw_lower_sampler_buffers(const char* src) {
+    ltw_strlist names = {0};
+    ltw_collect_buf_samplers(src, &names);
+
+    size_t srclen = strlen(src);
+
+    /* Fast path: nothing to lower. */
+    if(names.count == 0 && !ltw_contains(src, srclen, "GL_EXT_texture_buffer")) {
+        ltw_sl_free(&names);
+        char* dup = malloc(srclen + 1);
+        memcpy(dup, src, srclen + 1);
+        return dup;
+    }
+
+    size_t cap = srclen + 64, len = 0;
+    char* out = malloc(cap);
+#define ENSURE(extra) do { if(len + (extra) + 1 > cap) { \
+        while(len + (extra) + 1 > cap) cap *= 2; out = realloc(out, cap); } } while(0)
+
+    size_t i = 0;
+    while(i < srclen) {
+        char c = src[i];
+
+        /* Strip #extension GL_EXT_texture_buffer directive lines (kept as
+         * blank lines to preserve line numbers for diagnostics). */
+        if(c == '#') {
+            size_t ls = i, j = i;
+            while(j < srclen && src[j] != '\n') j++;
+            if(ltw_contains(src + ls, j - ls, "GL_EXT_texture_buffer")) {
+                i = j; /* drop line content; the trailing '\n' is emitted next */
+                continue;
+            }
+            ENSURE(1); out[len++] = c; i++; continue;
+        }
+
+        /* Word-boundary guard for the keyword matches below. */
+        if(i == 0 || !ltw_is_ident((unsigned char)src[i - 1])) {
+            /* texelFetch(buf, x) -> texelFetch(buf, ivec2(x, 0), 0) */
+            if(strncmp(src + i, "texelFetch", 10) == 0 && i + 10 <= srclen &&
+               (i + 10 == srclen || !ltw_is_ident((unsigned char)src[i + 10]))) {
+                size_t p = i + 10;
+                while(p < srclen && src[p] != '(' && isspace((unsigned char)src[p])) p++;
+                if(p < srclen && src[p] == '(') {
+                    size_t open = p, close = (size_t)-1;
+                    int depth = 0;
+                    for(size_t d = open; d < srclen; d++) {
+                        if(src[d] == '(') depth++;
+                        else if(src[d] == ')') { depth--; if(depth == 0) { close = d; break; } }
+                    }
+                    if(close != (size_t)-1) {
+                        size_t q = open + 1;
+                        while(q < close && isspace((unsigned char)src[q])) q++;
+                        size_t ns = q;
+                        while(q < close && ltw_is_ident((unsigned char)src[q])) q++;
+                        size_t nl = q - ns;
+                        if(nl > 0 && ltw_sl_has(&names, src + ns, nl)) {
+                            int d2 = 0; size_t comma = (size_t)-1;
+                            for(size_t d = q; d < close; d++) {
+                                if(src[d] == '(') d2++;
+                                else if(src[d] == ')') d2--;
+                                else if(src[d] == ',' && d2 == 0) { comma = d; break; }
+                            }
+                            if(comma != (size_t)-1) {
+                                size_t s2 = comma + 1, e2 = close;
+                                while(s2 < e2 && isspace((unsigned char)src[s2])) s2++;
+                                while(e2 > s2 && isspace((unsigned char)src[e2 - 1])) e2--;
+                                ENSURE(11 + nl + 8 + (e2 - s2) + 8);
+                                memcpy(out + len, "texelFetch(", 11); len += 11;
+                                memcpy(out + len, src + ns, nl); len += nl;
+                                memcpy(out + len, ", ivec2(", 8); len += 8;
+                                memcpy(out + len, src + s2, e2 - s2); len += (e2 - s2);
+                                memcpy(out + len, ", 0), 0)", 8); len += 8;
+                                i = close + 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /* textureSize(buf) -> textureSize(buf, 0).x  (1-arg form only) */
+            if(strncmp(src + i, "textureSize", 11) == 0 && i + 11 <= srclen &&
+               (i + 11 == srclen || !ltw_is_ident((unsigned char)src[i + 11]))) {
+                size_t p = i + 11;
+                while(p < srclen && src[p] != '(' && isspace((unsigned char)src[p])) p++;
+                if(p < srclen && src[p] == '(') {
+                    size_t open = p, close = (size_t)-1;
+                    int depth = 0;
+                    for(size_t d = open; d < srclen; d++) {
+                        if(src[d] == '(') depth++;
+                        else if(src[d] == ')') { depth--; if(depth == 0) { close = d; break; } }
+                    }
+                    if(close != (size_t)-1) {
+                        size_t q = open + 1;
+                        while(q < close && isspace((unsigned char)src[q])) q++;
+                        size_t ns = q;
+                        while(q < close && ltw_is_ident((unsigned char)src[q])) q++;
+                        size_t nl = q - ns;
+                        if(nl > 0 && ltw_sl_has(&names, src + ns, nl)) {
+                            int d2 = 0, has_comma = 0;
+                            for(size_t d = q; d < close; d++) {
+                                if(src[d] == '(') d2++;
+                                else if(src[d] == ')') d2--;
+                                else if(src[d] == ',' && d2 == 0) { has_comma = 1; break; }
+                            }
+                            if(!has_comma) {
+                                ENSURE(12 + nl + 6);
+                                memcpy(out + len, "textureSize(", 12); len += 12;
+                                memcpy(out + len, src + ns, nl); len += nl;
+                                memcpy(out + len, ", 0).x", 6); len += 6;
+                                i = close + 1;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            /* type tokens -> 2D variants */
+            const char* repl = NULL; size_t rlen = 0, mlen = 0;
+            if(strncmp(src + i, "usamplerBuffer", 14) == 0 && i + 14 <= srclen &&
+               (i + 14 == srclen || !ltw_is_ident((unsigned char)src[i + 14]))) {
+                repl = "usampler2D"; rlen = 10; mlen = 14;
+            } else if(strncmp(src + i, "isamplerBuffer", 14) == 0 && i + 14 <= srclen &&
+                      (i + 14 == srclen || !ltw_is_ident((unsigned char)src[i + 14]))) {
+                repl = "isampler2D"; rlen = 10; mlen = 14;
+            } else if(strncmp(src + i, "samplerBuffer", 13) == 0 && i + 13 <= srclen &&
+                      (i + 13 == srclen || !ltw_is_ident((unsigned char)src[i + 13]))) {
+                repl = "sampler2D"; rlen = 9; mlen = 13;
+            }
+            if(repl) {
+                ENSURE(rlen);
+                memcpy(out + len, repl, rlen); len += rlen;
+                i += mlen;
+                continue;
+            }
+        }
+
+        ENSURE(1);
+        out[len++] = c;
+        i++;
+    }
+#undef ENSURE
+    out[len] = 0;
+    ltw_sl_free(&names);
+    return out;
+}
+
 void glShaderSource(GLuint shader, GLsizei count, const GLchar *const*string, const GLint *length) {
     if(!current_context) return;
     shader_info_t* shader_info = unordered_map_get(current_context->shader_map, (void*)shader);
@@ -199,6 +423,16 @@ void glShaderSource(GLuint shader, GLsizei count, const GLchar *const*string, co
         printf("LTWShdrWp: failed to convert&optimize shader %u, skipping\n", shader);
         goto end;
     } else {
+        /* When the host lacks GL_EXT_texture_buffer (e.g. ANGLE Metal ES 3.0),
+         * lower samplerBuffer to sampler2D at the source level so the shader
+         * still compiles. Mirrors MobileGlues' conversion-layer approach. */
+        if(!current_context->buffer_texture_ext) {
+            GLchar* lowered = ltw_lower_sampler_buffers(new_source);
+            if(lowered) {
+                free(new_source);
+                new_source = lowered;
+            }
+        }
         //printf("\n\n\nShader Result\n%s\n\n\n", new_source);
         shader_info->source = new_source;
     }
