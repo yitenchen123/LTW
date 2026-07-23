@@ -447,6 +447,28 @@ void glGetIntegerv(GLenum pname, GLint* data) {
     }
 }
 
+void glGetFloatv(GLenum pname, GLfloat* data) {
+    if(!current_context) return;
+    if(es3_functions.glGetFloatv != NULL) {
+        es3_functions.glGetFloatv(pname, data);
+        return;
+    }
+    /* GLES implementations are not required to expose glGetFloatv through
+     * eglGetProcAddress (it's a core static entry in the ES spec, not an
+     * extension function), so some ANGLE builds return NULL for it -- in which
+     * case LTW would otherwise hand MC an empty stub and queries like
+     * GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT come back as 0, crashing the sampler
+     * validation ("maxAnisotropy ... must be >= 1 and <= 0"). Fall back to
+     * glGetIntegerv and widen to float; the ES spec guarantees both return the
+     * same logical values for the same pname. 16 slots covers every standard
+     * scalar/vector state query MC/Sodium issues. */
+    GLint idata[16] = {0};
+    es3_functions.glGetIntegerv(pname, idata);
+    if(data) {
+        for(int i = 0; i < 16; i++) data[i] = (GLfloat)idata[i];
+    }
+}
+
 void glDepthRange(GLdouble nearVal,
                   GLdouble farVal) {
     if(!current_context) return;

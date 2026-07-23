@@ -34,6 +34,8 @@ void glGetQueryObjectiv( 	GLuint id,
 void glDepthRange(GLdouble nearVal,
                   GLdouble farVal);
 
+void glGetFloatv(GLenum pname, GLfloat* data);
+
 GLESOVERRIDE(glClearDepth)
 GLESOVERRIDE(glMapBuffer)
 GLESOVERRIDE(glGetTexLevelParameteriv)
@@ -59,6 +61,7 @@ GLESOVERRIDE(glBindBufferRange)
 GLESOVERRIDE(glBindBuffer)
 GLESOVERRIDE(glUseProgram)
 GLESOVERRIDE(glGetIntegerv)
+GLESOVERRIDE(glGetFloatv)
 GLESOVERRIDE(glBindFramebuffer)
 GLESOVERRIDE(glGenFramebuffers)
 GLESOVERRIDE(glDeleteFramebuffers)
