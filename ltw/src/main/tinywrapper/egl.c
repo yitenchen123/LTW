@@ -7,6 +7,8 @@
 #include "unordered_map/int_hash.h"
 #include "string_utils.h"
 #include "env.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 thread_local context_t *current_context;

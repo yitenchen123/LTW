@@ -6,6 +6,7 @@
 
 #include "proc.h"
 #include "egl.h"
+#include <stdlib.h>
 #include <string.h>
 #include "libraryinternal.h"
 //#include <GL/glext.h>

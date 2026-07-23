@@ -5,6 +5,8 @@
  */
 #include "int_hash.h"
 #include "../libraryinternal.h"
+#include <stdio.h>
+#include <stdlib.h>
 static size_t intmap_hash(void* key) {
     return (size_t)key;
 }

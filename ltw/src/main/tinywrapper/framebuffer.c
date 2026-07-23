@@ -6,6 +6,8 @@
 
 #include "proc.h"
 #include "egl.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static framebuffer_t* get_framebuffer(GLenum target) {
