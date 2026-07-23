@@ -9,7 +9,15 @@
 
 #include <GLES3/gl32.h>
 #include <GLES2/gl2ext.h>
+#ifdef __APPLE__
+/* Apple's libc does not ship C11 <threads.h>. ltw core does not use any C11
+ * thread types itself, but the header is transitively required by proc.h's
+ * other includes on some toolchains. Use mesa's pthread-based c11 shim that
+ * already ships with glsl_optimizer. Android/Linux keep the real <threads.h>. */
+#include "c11/threads.h"
+#else
 #include <threads.h>
+#endif
 
 typedef void (*eglMustCastToProperFunctionPointerType)(void);
 
