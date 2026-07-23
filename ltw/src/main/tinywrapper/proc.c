@@ -7,11 +7,11 @@
 #include <GLES3/gl31.h>
 #include <dlfcn.h>
 #include <stdlib.h>
-#include <android/log.h>
 #include <string.h>
 #include "proc.h"
 #include "egl.h"
 #include "libraryinternal.h"
+#include "ltw_log.h"
 #define GL_GLEXT_PROTOTYPES
 #include "GL/gl.h"
 #include "GL/glext.h"
@@ -20,12 +20,12 @@ INTERNAL eglMustCastToProperFunctionPointerType (*host_eglGetProcAddress)(const 
 INTERNAL es3_functions_t es3_functions;
 
 static void error_sysegl() {
-    __android_log_print(ANDROID_LOG_ERROR, "LTWInit", "Failed to load system EGL: %s", dlerror());
+    LTW_LOGE("Failed to load system EGL: %s", dlerror());
     abort();
 }
 
 static void error_init(const char* functionName) {
-    __android_log_print(ANDROID_LOG_ERROR, "LTWInit", "Failed to load function \"%s\"", functionName);
+    LTW_LOGE("Failed to load function \"%s\"", functionName);
     abort();
 }
 
